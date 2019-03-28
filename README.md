@@ -149,6 +149,44 @@ book.attributes
 {"author" => "No author set"}
 ```
 
+## Collection Member Coercions
+
+```
+class Book
+  include Virtus.model
+
+  attribute :page_numbers, Array[Integer]
+end
+
+book = Book.new(:page_numbers => %w[1 2 3])
+book.page_numbers # => [1, 2, 3]
+```
+
+### Support EmbeddedValues, too!
+
+``` ruby
+class Address
+  extend FastAttributes
+
+  define_attributes initialize: true, attributes: true do
+    attribute :address,     String
+    attribute :locality,    String
+    attribute :region,      String
+    attribute :postal_code, String
+  end
+end
+
+FastAttributes.set_type_casting(Address, 'Address.new(%s)')
+
+class User
+  extend FastAttributes
+
+  define_attributes initialize: true, attributes: true do
+    attribute :name, String
+    attribute :addresses, Set[Address]
+  end
+end
+```
 
 ## Custom Type
 It's easy to add a custom attribute type.

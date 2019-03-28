@@ -69,6 +69,11 @@ module FastAttributes
       end.join("\n")
     end
 
+    def compile_lambda(attribute_name)
+      code_string = compile_method_body(attribute_name, 'value')
+      eval "lambda { |value| #{code_string} }"
+    end
+
     def compile_method_body(attribute_name, argument_name)
       method_body = "begin\n" +
                     "  #{type_casting_template}\n" +

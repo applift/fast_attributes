@@ -2,11 +2,15 @@ module FastAttributes
   class UnsupportedTypeError < TypeError
   end
 
+  # Build instance methods
+  #
   class Builder
+    attr_reader :attributes
+
     def initialize(klass, options = {})
       @klass      = klass
       @options    = options
-      @attributes = []
+      @attributes = {}
       @methods    = Module.new
     end
 
@@ -17,11 +21,13 @@ module FastAttributes
         options = {}
       end
 
-      unless FastAttributes.type_exists?(type)
-        raise UnsupportedTypeError, %(Unsupported attribute type "#{type.inspect}")
-      end
+      ensure_type_exists!(type)
 
-      @attributes << [attributes, type, options || {}]
+      data = { type: type, options: (options || {}) }
+
+      Array(attributes).each do |attr_name|
+        @attributes[attr_name.to_sym] = data
+      end
     end
 
     def compile!
@@ -29,18 +35,18 @@ module FastAttributes
       compile_setter
       set_defaults
 
-      if @options[:initialize]
-        compile_initialize
-      end
-
-      if @options[:attributes]
-        compile_attributes(@options[:attributes])
-      end
+      compile_initialize if @options[:initialize]
+      compile_attributes(@options[:attributes]) if @options[:attributes]
 
       include_methods
     end
 
     private
+
+    def ensure_type_exists!(type)
+      return if FastAttributes.type_exists?(type)
+      raise UnsupportedTypeError, "Unsupported attribute type \"#{type.inspect}\""
+    end
 
     def compile_getter
       each_attribute do |attribute, *|
@@ -66,12 +72,6 @@ module FastAttributes
     end
 
     def compile_initialize
-      attribute_string = if FastAttributes.default_attributes(@klass).empty?
-                           "attributes"
-                         else
-                           "FastAttributes.default_attributes(self.class).merge(attributes)"
-                         end
-
       @methods.module_eval <<-EOS, __FILE__, __LINE__ + 1
         def initialize(attributes = {})
           #{attribute_string}.each do |name, value|
@@ -79,6 +79,14 @@ module FastAttributes
           end
         end
       EOS
+    end
+
+    def attribute_string
+      if FastAttributes.default_attributes(@klass).empty?
+        'attributes'
+      else
+        'FastAttributes.default_attributes(self.class).merge(attributes)'
+      end
     end
 
     def compile_attributes(mode)
@@ -109,16 +117,15 @@ module FastAttributes
     end
 
     def set_defaults
-      each_attribute do |attribute, type, options|
-        FastAttributes.add_default_attribute(@klass, attribute, options[:default]) if options[:default]
+      each_attribute do |name, _type, options|
+        next unless options[:default]
+        FastAttributes.add_default_attribute(@klass, name, options[:default])
       end
     end
 
     def each_attribute
-      @attributes.each do |attributes, type, options = {}|
-        attributes.each do |attribute|
-          yield attribute, type, options
-        end
+      @attributes.each do |attr_name, data|
+        yield attr_name, data[:type], data[:options]
       end
     end
   end

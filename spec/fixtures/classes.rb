@@ -175,3 +175,38 @@ class ClassWithDefaults
     attribute :callable, String, default: lambda { "callable value" }
   end
 end
+
+class InviteForm
+  attr_reader :name, :email
+
+  def initialize(hash)
+    @name = hash[:name]
+    @email = hash[:email]
+  end
+end
+
+class Address
+  extend FastAttributes
+
+  define_attributes initialize: true, attributes: true do
+    attribute :address,     String
+    attribute :locality,    String
+    attribute :region,      String
+    attribute :postal_code, String
+  end
+end
+
+FastAttributes.set_type_casting(InviteForm, 'InviteForm.new(%s)')
+FastAttributes.set_type_casting(Address, 'Address.new(%s)')
+
+class ClassWithCollectionMemberAttribute
+  extend FastAttributes
+
+  define_attributes initialize: true, attributes: true do
+    attribute :title, String
+    attribute :page_numbers, Array[Integer]
+    attribute :words, Array[String]
+    attribute :invites, Array[InviteForm]
+    attribute :addresses, Set[Address]
+  end
+end
